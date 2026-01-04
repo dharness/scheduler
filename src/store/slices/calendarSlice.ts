@@ -11,6 +11,7 @@ interface CalendarState {
   error: string | null;
   isShiftPressed: boolean;
   nextEventColor: string; // Color for the next event to be created
+  hasUnsavedChanges: boolean; // Track if there are unsaved changes
 }
 
 const initialState: CalendarState = {
@@ -20,6 +21,7 @@ const initialState: CalendarState = {
   error: null,
   isShiftPressed: false,
   nextEventColor: '#4285f4', // Default blue color
+  hasUnsavedChanges: false,
 };
 
 // Async thunk to fetch calendars from Gist
@@ -78,8 +80,7 @@ export const createCalendar = createAsyncThunk(
         id: Date.now().toString(),
         name: name || formatDateAsCalendarName(),
       };
-      const updatedCalendars = [...calendars, newCalendar];
-      await gistService.updateCalendars(updatedCalendars, gistId, githubToken);
+      // Don't save to Gist here - auto-save will handle it
       return newCalendar;
     } catch (error) {
       return rejectWithValue(
@@ -101,10 +102,7 @@ export const deleteCalendar = createAsyncThunk(
         return rejectWithValue('GitHub token and Gist ID must be configured');
       }
       
-      const state = getState() as { calendar: CalendarState };
-      const calendars = state.calendar.calendars;
-      const updatedCalendars = calendars.filter((cal) => cal.id !== id);
-      await gistService.updateCalendars(updatedCalendars, gistId, githubToken);
+      // Don't save to Gist here - auto-save will handle it
       return id;
     } catch (error) {
       return rejectWithValue(
@@ -114,10 +112,10 @@ export const deleteCalendar = createAsyncThunk(
   }
 );
 
-// Async thunk to update calendars (for event changes)
-export const updateCalendars = createAsyncThunk(
-  'calendar/updateCalendars',
-  async (calendars: Calendar[], { rejectWithValue }) => {
+// Async thunk to save calendars to Gist (reads from current state)
+export const saveCalendarsToGist = createAsyncThunk(
+  'calendar/saveCalendarsToGist',
+  async (_, { getState, rejectWithValue }) => {
     try {
       const gistId = storageService.getGistId();
       const githubToken = storageService.getGithubToken();
@@ -126,11 +124,14 @@ export const updateCalendars = createAsyncThunk(
         return rejectWithValue('GitHub token and Gist ID must be configured');
       }
       
+      const state = getState() as { calendar: CalendarState };
+      const calendars = state.calendar.calendars;
+      
       await gistService.updateCalendars(calendars, gistId, githubToken);
       return calendars;
     } catch (error) {
       return rejectWithValue(
-        error instanceof Error ? error.message : 'Failed to update calendars'
+        error instanceof Error ? error.message : 'Failed to save calendars to Gist'
       );
     }
   }
@@ -153,6 +154,7 @@ const calendarSlice = createSlice({
           calendar.events = [];
         }
         calendar.events.push(action.payload);
+        state.hasUnsavedChanges = true;
       }
     },
     updateEvent: (state, action: PayloadAction<Event>) => {
@@ -161,6 +163,7 @@ const calendarSlice = createSlice({
         const index = calendar.events.findIndex((e) => e.id === action.payload.id);
         if (index !== -1) {
           calendar.events[index] = action.payload;
+          state.hasUnsavedChanges = true;
         }
       }
     },
@@ -168,6 +171,7 @@ const calendarSlice = createSlice({
       const calendar = state.calendars.find((cal) => cal.id === action.payload.calendarId);
       if (calendar && calendar.events) {
         calendar.events = calendar.events.filter((e) => e.id !== action.payload.eventId);
+        state.hasUnsavedChanges = true;
       }
     },
     setShiftPressed: (state, action: PayloadAction<boolean>) => {
@@ -187,9 +191,17 @@ const calendarSlice = createSlice({
       .addCase(fetchCalendars.fulfilled, (state, action) => {
         state.isLoading = false;
         state.calendars = action.payload;
-        if (action.payload.length > 0 && !state.selectedCalendarId) {
-          state.selectedCalendarId = action.payload[0].id;
+        if (action.payload.length > 0) {
+          // Always select the newest calendar (sorted by ID descending, so first one)
+          // Sort calendars by ID (timestamp) descending to get newest first
+          const sortedCalendars = [...action.payload].sort((a, b) => {
+            return parseInt(b.id) - parseInt(a.id);
+          });
+          state.selectedCalendarId = sortedCalendars[0].id;
+        } else {
+          state.selectedCalendarId = null;
         }
+        state.hasUnsavedChanges = false; // Reset after fetching
       })
       .addCase(fetchCalendars.rejected, (state, action) => {
         state.isLoading = false;
@@ -204,6 +216,7 @@ const calendarSlice = createSlice({
       .addCase(createCalendar.fulfilled, (state, action) => {
         state.calendars.push(action.payload);
         state.selectedCalendarId = action.payload.id;
+        state.hasUnsavedChanges = true;
       })
       .addCase(createCalendar.rejected, (state, action) => {
         state.error = action.payload as string;
@@ -222,15 +235,23 @@ const calendarSlice = createSlice({
           state.selectedCalendarId =
             state.calendars.length > 0 ? state.calendars[0].id : null;
         }
+        state.hasUnsavedChanges = true;
       })
       .addCase(deleteCalendar.rejected, (state, action) => {
         state.error = action.payload as string;
       });
 
-    // Update calendars (for event changes)
+    // Save calendars to Gist
     builder
-      .addCase(updateCalendars.fulfilled, (state, action) => {
-        state.calendars = action.payload;
+      .addCase(saveCalendarsToGist.pending, (state) => {
+        // Could add a saving state here if needed
+      })
+      .addCase(saveCalendarsToGist.fulfilled, (state) => {
+        // State is already up to date, just mark as saved
+        state.hasUnsavedChanges = false;
+      })
+      .addCase(saveCalendarsToGist.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });

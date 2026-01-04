@@ -1,5 +1,5 @@
 .calendar-view {
-  padding: 24px;
+  padding: 12px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -12,7 +12,7 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  padding: 12px;
   height: fit-content;
   max-height: 100%;
   display: flex;
@@ -21,7 +21,7 @@
 }
 
 .calendar-header {
-  padding-bottom: 16px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0;
   display: flex;
@@ -31,7 +31,7 @@
 
 .calendar-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
 }
@@ -154,8 +154,8 @@
   width: 120px;
   flex-shrink: 0;
   border-right: 1px solid #e0e0e0;
-  padding-right: 16px;
-  height: 720px; /* 24 hours * 30px = 720px */
+  padding-right: 8px;
+  height: 960px; /* 24 hours * 40px = 960px */
 }
 
 .calendar-events-column {
@@ -164,11 +164,11 @@
   position: relative;
   overflow-x: visible;
   overflow-y: visible;
-  height: 720px; /* 24 hours * 30px = 720px */
+  height: 960px; /* 24 hours * 40px = 960px */
 }
 
 .time-slot-label {
-  height: 30px;
+  height: 40px;
   display: flex;
   align-items: flex-start;
   padding-top: 4px;
@@ -190,7 +190,7 @@
 }
 
 .time-slot {
-  height: 30px;
+  height: 40px;
   border-bottom: 1px solid #f0f0f0;
   position: relative;
   cursor: default;

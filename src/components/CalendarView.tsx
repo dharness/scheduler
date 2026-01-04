@@ -3,7 +3,7 @@ import { Calendar } from '../types/calendar';
 import { Event } from '../types/event';
 import { CalendarEvent } from './CalendarEvent';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { addEvent, updateEvent, deleteEvent, updateCalendars, setShiftPressed, setNextEventColor } from '../store/slices/calendarSlice';
+import { addEvent, updateEvent, deleteEvent, setShiftPressed, setNextEventColor } from '../store/slices/calendarSlice';
 import { RootState } from '../store/store';
 import './CalendarView.css';
 
@@ -51,7 +51,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
   const currentMinute = today.getMinutes();
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const eventsColumnRef = useRef<HTMLDivElement>(null);
-  const slotHeight = 30; // Each hour slot is 30px tall
+  const slotHeight = 40; // Each hour slot is 40px tall
   const minutesPerSlot = 60; // Each slot represents 1 hour (60 minutes)
   
   // State to force re-render for current time tracking
@@ -208,7 +208,64 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
       return { left: 0, width: 100 };
     }
 
-    // Create a group of all overlapping events including this one
+    // Find the maximum number of simultaneous overlapping events
+    // This is done by finding all events that overlap with any event in the current overlap group
+    // and then determining the maximum clique size
+    const allOverlappingWithEvent = new Set<string>();
+    allOverlappingWithEvent.add(event.id);
+    overlappingEvents.forEach(e => allOverlappingWithEvent.add(e.id));
+    
+    // Expand the set to include all events that overlap with any event in the current group
+    let changed = true;
+    while (changed) {
+      changed = false;
+      allEvents.forEach(e => {
+        if (!allOverlappingWithEvent.has(e.id)) {
+          // Check if this event overlaps with any event in the current set
+          const overlappingIds = Array.from(allOverlappingWithEvent);
+          for (const id of overlappingIds) {
+            const otherEvent = allEvents.find(ev => ev.id === id);
+            if (otherEvent && eventsOverlap(e, otherEvent)) {
+              allOverlappingWithEvent.add(e.id);
+              changed = true;
+              break;
+            }
+          }
+        }
+      });
+    }
+    
+    // Now find the maximum number of columns needed
+    // This is the maximum number of events that overlap at any single time point
+    const eventsInOverlapRegion = Array.from(allOverlappingWithEvent).map(id => 
+      allEvents.find(e => e.id === id)!
+    );
+    
+    // Find all unique time points (start and end times)
+    const timePoints = new Set<number>();
+    eventsInOverlapRegion.forEach(e => {
+      const start = e.startHour * 60 + e.startMinute;
+      const end = start + e.duration;
+      timePoints.add(start);
+      timePoints.add(end);
+    });
+    
+    // For each time point, count how many events are active
+    let maxSimultaneous = 0;
+    const timePointsArray = Array.from(timePoints);
+    for (const timePoint of timePointsArray) {
+      let count = 0;
+      for (const e of eventsInOverlapRegion) {
+        const start = e.startHour * 60 + e.startMinute;
+        const end = start + e.duration;
+        if (timePoint >= start && timePoint < end) {
+          count++;
+        }
+      }
+      maxSimultaneous = Math.max(maxSimultaneous, count);
+    }
+    
+    // Create a group of all overlapping events including this one for positioning
     const group = [event, ...overlappingEvents];
     
     const isEventDragging = draggingEventId === event.id;
@@ -321,17 +378,76 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
 
     // Find position of this event in the group
     const position = group.findIndex((e) => e.id === event.id);
-    const totalOverlapping = group.length;
+    
+    // Use maxSimultaneous for width calculation, not group.length
+    // This ensures that if A and B don't overlap but both overlap with C,
+    // they can share a column (50% width each) while C gets its own column (50% width)
+    const totalColumns = maxSimultaneous;
     
     // Calculate width and left position
     // For overlapping events, we need to account for 2px gaps between them
     // Since we're using percentage widths, we'll approximate by reducing width slightly
     // and using margin-right in CSS
-    const baseWidthPercent = 100 / totalOverlapping;
+    const baseWidthPercent = 100 / totalColumns;
     // Reduce width slightly to account for margins (roughly 0.3% per overlapping event)
-    const widthPercent = Math.max(baseWidthPercent - (totalOverlapping * 0.3), baseWidthPercent * 0.97);
-    // Calculate left position - need to account for margins of previous events
-    const leftPercent = position * baseWidthPercent;
+    const widthPercent = Math.max(baseWidthPercent - (totalColumns * 0.3), baseWidthPercent * 0.97);
+    
+    // For left position, we need to determine which column this event should be in
+    // We'll use a greedy algorithm: assign events to columns from left to right
+    // Events that don't overlap can share the same column
+    const columns: Event[][] = [];
+    const eventToColumn = new Map<string, number>();
+    
+    // Use all events in the overlap region for column assignment, not just the group
+    // Sort events by start time for column assignment, but respect drag/drop positioning
+    const sortedEventsForColumns = [...eventsInOverlapRegion].sort((a, b) => {
+      // If one is being dragged or was just dropped, it should go to the rightmost column
+      const aIsDragged = (isDraggingActive && a.id === draggingEventId) || (a.id === lastDraggedEventIdRef.current);
+      const bIsDragged = (isDraggingActive && b.id === draggingEventId) || (b.id === lastDraggedEventIdRef.current);
+      
+      if (aIsDragged && !bIsDragged) return 1; // Dragged events go to the end
+      if (!aIsDragged && bIsDragged) return -1;
+      
+      // Otherwise sort by start time
+      const startA = a.startHour * 60 + a.startMinute;
+      const startB = b.startHour * 60 + b.startMinute;
+      if (startA !== startB) {
+        return startA - startB;
+      }
+      return a.id.localeCompare(b.id);
+    });
+    
+    // Assign each event to the leftmost column where it doesn't overlap with existing events
+    for (const e of sortedEventsForColumns) {
+      let assignedColumn = -1;
+      for (let colIndex = 0; colIndex < columns.length; colIndex++) {
+        const columnEvents = columns[colIndex];
+        // Check if this event overlaps with any event in this column
+        const overlaps = columnEvents.some(existingEvent => eventsOverlap(e, existingEvent));
+        if (!overlaps) {
+          assignedColumn = colIndex;
+          break;
+        }
+      }
+      
+      if (assignedColumn === -1) {
+        // Need a new column
+        assignedColumn = columns.length;
+        columns.push([]);
+      }
+      
+      columns[assignedColumn].push(e);
+      eventToColumn.set(e.id, assignedColumn);
+    }
+    
+    // If this is a dragged/dropped event, ensure it's in the rightmost column
+    if (isEventDragging || isLastDraggedEvent) {
+      const maxColumn = Math.max(...Array.from(eventToColumn.values()));
+      eventToColumn.set(event.id, maxColumn);
+    }
+    
+    const eventColumn = eventToColumn.get(event.id) ?? 0;
+    const leftPercent = eventColumn * baseWidthPercent;
     
     return { left: leftPercent, width: widthPercent };
   };
@@ -543,13 +659,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
       };
       
       dispatch(addEvent(newEvent));
-      // Save to Gist
-      const updatedCalendars = calendars.map((cal) =>
-        cal.id === calendar.id
-          ? { ...cal, events: [...(cal.events || []), newEvent] }
-          : cal
-      );
-      dispatch(updateCalendars(updatedCalendars));
+      // Auto-save will handle saving to Gist
       
       // Set the new event to edit mode
       setEditingEventId(newEventId);
@@ -579,49 +689,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
     });
   };
 
-  // Save event changes to Gist (called on drag/resize end)
+  // Event update end handler (auto-save will handle saving to Gist)
   const handleEventUpdateEnd = (event: Event) => {
-    // Save to Gist
-    const updatedCalendars = calendars.map((cal) =>
-      cal.id === event.calendarId
-        ? {
-            ...cal,
-            events: cal.events?.map((e) => (e.id === event.id ? event : e)) || [],
-          }
-        : cal
-    );
-    dispatch(updateCalendars(updatedCalendars));
+    // Auto-save will handle saving to Gist
   };
 
-  // Save multiple event changes to Gist (called on multi-select drag end)
+  // Multiple event update end handler (auto-save will handle saving to Gist)
   const handleEventUpdateMultipleEnd = (events: Event[]) => {
-    if (!calendar || events.length === 0) return;
-    
-    // Update all events in the calendar
-    const updatedCalendars = calendars.map((cal) =>
-      cal.id === calendar.id
-        ? {
-            ...cal,
-            events: cal.events?.map((e) => {
-              const updatedEvent = events.find((ue) => ue.id === e.id);
-              return updatedEvent || e;
-            }) || [],
-          }
-        : cal
-    );
-    dispatch(updateCalendars(updatedCalendars));
+    // Auto-save will handle saving to Gist
   };
 
   const handleEventDelete = (eventId: string) => {
     if (!calendar) return;
     dispatch(deleteEvent({ calendarId: calendar.id, eventId }));
-    // Save to Gist
-    const updatedCalendars = calendars.map((cal) =>
-      cal.id === calendar.id
-        ? { ...cal, events: cal.events?.filter((e) => e.id !== eventId) || [] }
-        : cal
-    );
-    dispatch(updateCalendars(updatedCalendars));
+    // Auto-save will handle saving to Gist
     // Remove from selection after deletion
     setSelectedEventIds((prev) => {
       const newSet = new Set(prev);
@@ -703,13 +784,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
         }
       });
 
-      // Update Gist with all color changes
-      const updatedCalendars = calendars.map((cal) =>
-        cal.id === calendar.id
-          ? { ...cal, events: updatedEvents }
-          : cal
-      );
-      dispatch(updateCalendars(updatedCalendars));
+      // Auto-save will handle saving to Gist
     }
 
     // Close the color picker menu
@@ -726,13 +801,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
       dispatch(deleteEvent({ calendarId: calendar.id, eventId }));
     });
 
-    // Update Gist with all deletions
-    const updatedCalendars = calendars.map((cal) =>
-      cal.id === calendar.id
-        ? { ...cal, events: cal.events?.filter((e) => !selectedEventIds.has(e.id)) || [] }
-        : cal
-    );
-    dispatch(updateCalendars(updatedCalendars));
+    // Auto-save will handle saving to Gist
 
     // Clear selection after deletion
     setSelectedEventIds(new Set());
@@ -743,8 +812,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
     if (selectedEventIds.size === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if Delete or Backspace is pressed and no input is focused
-      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT') {
+      // Only handle if Delete or Backspace is pressed and we're not in edit mode
+      // Check if active element is an input, textarea, or contentEditable div
+      const activeElement = document.activeElement;
+      const isInput = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
+      const isContentEditable = activeElement?.getAttribute('contenteditable') === 'true';
+      const isEditing = editingEventId !== null;
+      
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput && !isContentEditable && !isEditing) {
         e.preventDefault();
         handleDeleteSelectedEvents();
       }
@@ -752,7 +827,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEventIds, handleDeleteSelectedEvents]);
+  }, [selectedEventIds, handleDeleteSelectedEvents, editingEventId]);
 
   if (!calendar) {
     return (

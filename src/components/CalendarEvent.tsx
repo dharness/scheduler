@@ -58,6 +58,7 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
     x: number;
     y: number;
   } | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const eventRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const latestEventRef = useRef<Event>(event); // Track latest event during drag/resize
@@ -86,8 +87,8 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
 
     // Top aligns with time slot lines, no adjustment needed
 
-    // Reduce height by 2px for bottom gap
-    const height = (event.duration / minutesPerSlot) * slotHeight - 2;
+    // Reduce height by 1px for bottom gap to prevent overlap
+    const height = (event.duration / minutesPerSlot) * slotHeight - 1;
     return { top, height };
   };
 
@@ -272,7 +273,7 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
         const deltaY = e.clientY - resizeStart.y;
         const deltaMinutes = (deltaY / slotHeight) * minutesPerSlot;
         const newDuration = Math.max(
-          15,
+          30,
           Math.round((resizeStart.duration + deltaMinutes) / 15) * 15
         );
 
@@ -536,6 +537,26 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
   // Note: Keyboard delete is now handled at the CalendarView level for multi-select support
   // Individual event delete handlers are no longer needed here
 
+  // Format time range for tooltip
+  const timeRangeTooltip = `${formatTime(event.startHour, event.startMinute)} - ${formatEndTime(event)}`;
+  const isShortEvent = event.duration <= 30;
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    if (!isDragging && !isResizing && !isEditing) {
+      setTooltipPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (tooltipPosition && !isDragging && !isResizing && !isEditing) {
+      setTooltipPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setTooltipPosition(null);
+  };
+
   return (
     <div
       ref={eventRef}
@@ -543,7 +564,7 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
         isResizing ? "resizing" : ""
       } ${width < 100 ? "overlapping" : ""} ${isSelected ? "selected" : ""} ${
         isShiftPressed ? "multiselect-mode" : ""
-      }`}
+      } ${isShortEvent ? "short-event" : ""}`}
       style={
         {
           top: `${top}px`,
@@ -554,6 +575,9 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
           "--event-color": event.color || "#4285f4",
         } as React.CSSProperties
       }
+      onMouseEnter={handleMouseEnter}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       onMouseDown={(e) => {
         e.stopPropagation();
         // Don't start drag if clicking on title with Shift pressed
@@ -596,6 +620,19 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
         className="event-resize-handle"
         onMouseDown={(e) => handleMouseDown(e, true)}
       />
+      {tooltipPosition && (
+        <div
+          className="event-tooltip"
+          style={{
+            position: 'fixed',
+            left: `${tooltipPosition.x + 10}px`,
+            top: `${tooltipPosition.y - 30}px`,
+            pointerEvents: 'none',
+          }}
+        >
+          {timeRangeTooltip}
+        </div>
+      )}
     </div>
   );
 };

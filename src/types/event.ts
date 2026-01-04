@@ -8,3 +8,4 @@ export interface Event {
   color?: string; // optional color for the event
 }
 
+
