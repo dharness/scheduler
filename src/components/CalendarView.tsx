@@ -81,6 +81,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
   // Track which event is currently being dragged
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
   
+  // Track the last dragged event ID to keep it on the right after drop
+  const lastDraggedEventIdRef = useRef<string | null>(null);
+  
   // Store original overlap positions when drag starts
   const originalOverlapPositionsRef = useRef<Map<string, number>>(new Map());
   
@@ -195,6 +198,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
       e.id !== event.id && eventsOverlap(event, e)
     );
     
+    // If the last dragged event no longer overlaps, clear the ref
+    if (lastDraggedEventIdRef.current === event.id && overlappingEvents.length === 0) {
+      lastDraggedEventIdRef.current = null;
+    }
+    
     if (overlappingEvents.length === 0) {
       // No overlaps, full width
       return { left: 0, width: 100 };
@@ -204,14 +212,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
     const group = [event, ...overlappingEvents];
     
     const isEventDragging = draggingEventId === event.id;
+    const isDraggingActive = draggingEventId !== null;
+    const isLastDraggedEvent = lastDraggedEventIdRef.current === event.id;
+    const draggedEvent = isDraggingActive ? allEvents.find((e) => e.id === draggingEventId) : null;
     
     // Check if this event was already overlapping before the drag started
     const hadOriginalPosition = originalOverlapPositionsRef.current.has(event.id);
     const originalPosition = originalOverlapPositionsRef.current.get(event.id);
     
-    if (isEventDragging && !hadOriginalPosition) {
-      // Event is being dragged and newly overlaps - place it on the right
-      // Sort stationary events by start time, then add dragged event at the end
+    if (isEventDragging || isLastDraggedEvent) {
+      // Event is being dragged or was just dropped - always place it on the rightmost side when overlapping
+      // Sort stationary events by start time, then add dragged/dropped event at the end
       const stationaryEvents = group.filter((e) => e.id !== event.id);
       stationaryEvents.sort((a, b) => {
         const startA = a.startHour * 60 + a.startMinute;
@@ -223,37 +234,89 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
       });
       group.length = 0;
       group.push(...stationaryEvents, event);
-    } else if (isEventDragging && hadOriginalPosition && originalPosition !== undefined) {
-      // Event is being dragged and was already overlapping - maintain relative position
-      // Sort by original position, then by start time for events without original position
-      group.sort((a, b) => {
-        const posA = originalOverlapPositionsRef.current.get(a.id);
-        const posB = originalOverlapPositionsRef.current.get(b.id);
-        
-        if (posA !== undefined && posB !== undefined) {
-          return posA - posB;
-        }
-        if (posA !== undefined) return -1;
-        if (posB !== undefined) return 1;
-        
-        // Both don't have original position, sort by start time
-        const startA = a.startHour * 60 + a.startMinute;
-        const startB = b.startHour * 60 + b.startMinute;
-        if (startA !== startB) {
-          return startA - startB;
-        }
-        return a.id.localeCompare(b.id);
-      });
     } else {
-      // Not dragging or stationary event - sort by start time, then by ID
-      group.sort((a, b) => {
-        const startA = a.startHour * 60 + a.startMinute;
-        const startB = b.startHour * 60 + b.startMinute;
-        if (startA !== startB) {
-          return startA - startB;
+      // Stationary event - maintain position relative to other stationary events
+      // Check if this overlaps with a dragged or recently dropped event
+      const lastDraggedEvent = lastDraggedEventIdRef.current ? allEvents.find((e) => e.id === lastDraggedEventIdRef.current) : null;
+      const overlapsWithDragged = isDraggingActive && draggedEvent && eventsOverlap(event, draggedEvent);
+      const overlapsWithLastDragged = lastDraggedEvent && eventsOverlap(event, lastDraggedEvent);
+      
+      if (overlapsWithDragged || overlapsWithLastDragged) {
+        // This stationary event overlaps with the dragged/dropped event
+        // Check if it has an original position (was overlapping when drag started)
+        if (hadOriginalPosition && originalPosition !== undefined) {
+          // It was originally overlapping - maintain relative position with other originally overlapping events
+          // Sort by original position for events that have it, then by start time for others
+          // Exclude the dragged/dropped event from this sorting - it will be placed on the right separately
+          const draggedId = isDraggingActive ? draggingEventId : lastDraggedEventIdRef.current;
+          const stationaryEvents = group.filter((e) => e.id !== draggedId);
+          const draggedEventInGroup = group.find((e) => e.id === draggedId);
+          
+          // Sort stationary events by original position if they have it, otherwise by start time
+          stationaryEvents.sort((a, b) => {
+            const posA = originalOverlapPositionsRef.current.get(a.id);
+            const posB = originalOverlapPositionsRef.current.get(b.id);
+            
+            // If both have original positions, use them
+            if (posA !== undefined && posB !== undefined) {
+              return posA - posB;
+            }
+            // If only one has original position, it comes first (maintains original group order)
+            if (posA !== undefined) return -1;
+            if (posB !== undefined) return 1;
+            
+            // Neither has original position - sort by start time
+            const startA = a.startHour * 60 + a.startMinute;
+            const startB = b.startHour * 60 + b.startMinute;
+            if (startA !== startB) {
+              return startA - startB;
+            }
+            return a.id.localeCompare(b.id);
+          });
+          
+          // Place dragged/dropped event on the right
+          group.length = 0;
+          if (draggedEventInGroup) {
+            group.push(...stationaryEvents, draggedEventInGroup);
+          } else {
+            group.push(...stationaryEvents);
+          }
+        } else {
+          // This stationary event is newly overlapping with the dragged/dropped event
+          // The dragged/dropped event should be placed on the right, so sort stationary events first
+          const draggedId = isDraggingActive ? draggingEventId : lastDraggedEventIdRef.current;
+          const stationaryEvents = group.filter((e) => e.id !== draggedId);
+          const draggedEventInGroup = group.find((e) => e.id === draggedId);
+          
+          // Sort stationary events by start time to maintain their relative order
+          stationaryEvents.sort((a, b) => {
+            const startA = a.startHour * 60 + a.startMinute;
+            const startB = b.startHour * 60 + b.startMinute;
+            if (startA !== startB) {
+              return startA - startB;
+            }
+            return a.id.localeCompare(b.id);
+          });
+          
+          // Place dragged/dropped event on the right
+          group.length = 0;
+          if (draggedEventInGroup) {
+            group.push(...stationaryEvents, draggedEventInGroup);
+          } else {
+            group.push(...stationaryEvents);
+          }
         }
-        return a.id.localeCompare(b.id);
-      });
+      } else {
+        // No drag active or doesn't overlap with dragged/dropped event - sort by start time, then by ID
+        group.sort((a, b) => {
+          const startA = a.startHour * 60 + a.startMinute;
+          const startB = b.startHour * 60 + b.startMinute;
+          if (startA !== startB) {
+            return startA - startB;
+          }
+          return a.id.localeCompare(b.id);
+        });
+      }
     }
 
     // Find position of this event in the group
@@ -940,6 +1003,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
                     }
                   }}
                   onDragStart={() => {
+                    // Clear the last dragged event ID when a new drag starts
+                    lastDraggedEventIdRef.current = null;
                     // Store original overlap positions when drag starts
                     const overlappingEvents = events.filter((e) => 
                       e.id !== event.id && eventsOverlap(event, e)
@@ -962,6 +1027,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ calendar }) => {
                     // Don't deselect when dragging starts - allow multi-select to persist
                   }}
                   onDragEnd={() => {
+                    // Store the dragged event ID so it stays on the right after drop
+                    lastDraggedEventIdRef.current = event.id;
                     setDraggingEventId(null);
                     originalOverlapPositionsRef.current.clear();
                   }}
