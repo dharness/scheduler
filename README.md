@@ -1,4 +1,46 @@
-# Getting Started with Create React App
+# Calendar Scheduler App
+
+A 1-day calendar app powered by GitHub Gist as its database.
+
+## Setup
+
+This app uses GitHub Gist as its database. You'll need a GitHub Personal Access Token with `gist` scope.
+
+### Option 1: Enter Token in App (Recommended)
+1. Start the app with `npm start`
+2. When prompted, enter your GitHub Personal Access Token
+3. The token will be stored in your browser's localStorage
+
+### Option 2: Environment Variable
+Create a `.env` file in the root directory:
+```
+REACT_APP_GITHUB_TOKEN=your_token_here
+```
+
+### Creating a GitHub Token
+1. Go to [GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)](https://github.com/settings/tokens/new)
+2. Generate a new token with the `gist` scope
+3. Copy the token and use it in the app
+
+## Database
+
+The app stores calendar data in a GitHub Gist:
+- Gist ID: `62b41253c63e6f0d722c33c4f29bc0e9`
+- File: `schedules.json`
+
+The data structure:
+```json
+{
+  "calendars": [
+    {
+      "id": "string",
+      "name": "string"
+    }
+  ]
+}
+```
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

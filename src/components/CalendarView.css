@@ -1,0 +1,265 @@
+.calendar-view {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 500px;
+  max-width: 50%;
+}
+
+.calendar-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  height: fit-content;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calendar-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.calendar-tools-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-tools-menu-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #666;
+  transition: background-color 0.2s, color 0.2s;
+  padding: 0;
+}
+
+.calendar-tools-menu-item:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.calendar-tools-menu-item.delete:hover:not(.disabled) {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.calendar-tools-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.calendar-tools-menu-item svg {
+  width: 18px;
+  height: 18px;
+}
+
+.color-picker-container {
+  position: relative;
+}
+
+.color-picker-button {
+  padding: 4px;
+}
+
+.color-picker-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.color-picker-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  z-index: 1000;
+}
+
+.color-picker-option {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.color-picker-option:hover {
+  background-color: #f0f0f0;
+}
+
+.color-picker-option .color-picker-circle {
+  width: 20px;
+  height: 20px;
+  border: none;
+}
+
+.calendar-date {
+  font-size: 14px;
+  color: #666;
+  font-weight: 400;
+}
+
+.calendar-day-container {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  flex-shrink: 1;
+  padding-right: 5px;
+}
+
+.calendar-time-column {
+  width: 120px;
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
+  padding-right: 16px;
+  height: 720px; /* 24 hours * 30px = 720px */
+}
+
+.calendar-events-column {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow-x: visible;
+  overflow-y: visible;
+  height: 720px; /* 24 hours * 30px = 720px */
+}
+
+.time-slot-label {
+  height: 30px;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 4px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+
+.time-slot-label.greyed-out {
+  color: #999;
+  opacity: 0.6;
+}
+
+.time-slot.greyed-out {
+  background-color: #f8f8f8;
+  opacity: 0.7;
+}
+
+.time-slot {
+  height: 30px;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  cursor: default;
+}
+
+.time-slot::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 1px;
+  background-color: #e0e0e0;
+}
+
+.time-slot:first-child::before {
+  display: none;
+}
+
+/* Highlight current hour */
+.time-slot[data-hour] {
+  position: relative;
+}
+
+
+.empty-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
+}
+
+.event-preview {
+  position: absolute;
+  border: 2px dashed rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+.current-time-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+.current-time-arrow {
+  width: 0;
+  height: 0;
+  border-top: 6.25px solid transparent;
+  border-bottom: 6.25px solid transparent;
+  border-left: 7.5px solid #9c27b0;
+  flex-shrink: 0;
+  position: absolute;
+  left: -5.5px;
+}
+
+.current-time-line {
+  flex: 1;
+  height: 2px;
+  background-color: #9c27b0;
+}
+

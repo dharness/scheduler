@@ -1,0 +1,62 @@
+.calendar-item {
+  padding: 12px 16px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.calendar-item:hover {
+  background-color: #e8e8e8;
+}
+
+.calendar-item.active {
+  background-color: #007AFF;
+  color: white;
+}
+
+.calendar-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-menu-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.calendar-menu-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  border-radius: 4px;
+}
+
+.calendar-item:hover .calendar-menu-btn {
+  opacity: 1;
+}
+
+.calendar-menu-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.calendar-item.active .calendar-menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
