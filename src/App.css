@@ -18,7 +18,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-light);
   overflow-y: auto;
 }
 
@@ -28,25 +28,25 @@
   justify-content: center;
   height: 100vh;
   width: 100vw;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 16px;
 }
 
 .error-banner {
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: var(--color-error-light);
+  color: var(--color-error-dark);
   padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #ffcdd2;
+  border-bottom: 1px solid var(--color-error);
   font-size: 14px;
 }
 
 .error-banner button {
   background: none;
   border: none;
-  color: #c62828;
+  color: var(--color-error-dark);
   font-size: 20px;
   cursor: pointer;
   padding: 0;
@@ -59,18 +59,18 @@
 }
 
 .error-banner button:hover {
-  background-color: rgba(198, 40, 40, 0.1);
+  background-color: var(--overlay-white-15);
 }
 
 .save-toast {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background-color: #4caf50;
-  color: white;
+  background-color: var(--color-success);
+  color: var(--color-text-white);
   padding: 12px 24px;
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px var(--overlay-black-20);
   z-index: 10000;
   font-size: 14px;
   animation: toastFadeIn 0.3s ease-in, toastFadeOut 0.3s ease-out 2.7s forwards;
@@ -104,7 +104,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--overlay-black-50);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,12 +122,12 @@
 }
 
 .modal-content {
-  background-color: white;
+  background-color: var(--color-bg-white);
   border-radius: 8px;
   padding: 24px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px var(--overlay-black-20);
   animation: slideUp 0.2s ease-out;
 }
 
@@ -146,13 +146,13 @@
   margin: 0 0 12px 0;
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .modal-content p {
   margin: 0 0 24px 0;
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
@@ -173,20 +173,20 @@
 }
 
 .modal-button.save {
-  background-color: #1976d2;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-white);
 }
 
 .modal-button.save:hover {
-  background-color: #1565c0;
+  background-color: var(--color-primary-hover);
 }
 
 .modal-button.cancel {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: var(--color-bg-disabled);
+  color: var(--color-text-primary);
 }
 
 .modal-button.cancel:hover {
-  background-color: #d0d0d0;
+  background-color: var(--color-border-light);
 }
 

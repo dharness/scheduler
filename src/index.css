@@ -22,3 +22,96 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Color Variables */
+:root {
+  /* Color 1 */
+  --color-event-1-light: #ECFBF2ff;
+  --color-event-1-medium: #CAE8D9ff;
+  --color-event-1-dark: #419370ff;
+  --color-event-1-darkest: #1E6E4Dff;
+
+  /* Color 2 */
+  --color-event-2-light: #F6F6F6ff;
+  --color-event-2-medium: #F0F0F0ff;
+  --color-event-2-dark: #696969ff;
+  --color-event-2-darkest: #444444ff;
+
+  /* Color 3 */
+  --color-event-3-light: #F7F5FFff;
+  --color-event-3-medium: #E8E3F6ff;
+  --color-event-3-dark: #7A65B5ff;
+  --color-event-3-darkest: #5D45A3ff;
+
+  /* Color 4 */
+  --color-event-4-light: #FFFBE5ff;
+  --color-event-4-medium: #F6F0C0ff;
+  --color-event-4-dark: #AD9036ff;
+  --color-event-4-darkest: rgb(168, 112, 39);
+
+  /* Color 5 */
+  --color-event-5-light: #FDF3FCff;
+  --color-event-5-medium: #F3DCEAff;
+  --color-event-5-dark: #BE6595ff;
+  --color-event-5-darkest: #B11B69ff;
+
+  /* Color 6 */
+  --color-event-6-light: #EAF4FCff;
+  --color-event-6-medium: #D9E4F5ff;
+  --color-event-6-dark: #5B619Fff;
+  --color-event-6-darkest: #423CB5ff;
+
+  
+  /* UI Colors */
+  --color-primary: #1976d2;
+  --color-primary-hover: #1565c0;
+  --color-primary-active: #0d47a1;
+  --color-primary-light: #4285f4;
+  --color-primary-light-hover: #357ae8;
+  --color-primary-light-active: #2968d1;
+  --color-primary-ios: #007AFF;
+  --color-primary-ios-hover: #0056b3;
+  --color-primary-ios-active: #004085;
+  
+  /* Text Colors */
+  --color-text-primary: #333;
+  --color-text-secondary: #666;
+  --color-text-tertiary: #999;
+  --color-text-white: #ffffff;
+  
+  /* Border Colors */
+  --color-border-light: #e0e0e0;
+  --color-border-lighter: #f0f0f0;
+  --color-border-medium: #ddd;
+  
+  /* Background Colors */
+  --color-bg-white: #ffffff;
+  --color-bg-light: #f5f5f5;
+  --color-bg-lighter: #f8f8f8;
+  --color-bg-error: #ffebee;
+  --color-bg-disabled: #e0e0e0;
+  
+  /* Error Colors */
+  --color-error: #d32f2f;
+  --color-error-dark: #c62828;
+  --color-error-light: #ffebee;
+  
+  /* Success Colors */
+  --color-success: #4caf50;
+  
+  /* Unsaved Indicator */
+  --color-unsaved: #f44336;
+  
+  /* Overlays */
+  --overlay-black-10: rgba(0, 0, 0, 0.1);
+  --overlay-black-20: rgba(0, 0, 0, 0.2);
+  --overlay-black-30: rgba(0, 0, 0, 0.3);
+  --overlay-black-40: rgba(0, 0, 0, 0.4);
+  --overlay-black-50: rgba(0, 0, 0, 0.5);
+  --overlay-black-80: rgba(0, 0, 0, 0.8);
+  --overlay-white-15: rgba(255, 255, 255, 0.15);
+  --overlay-white-20: rgba(255, 255, 255, 0.2);
+  --overlay-white-50: rgba(255, 255, 255, 0.5);
+  --overlay-white-60: rgba(255, 255, 255, 0.6);
+  --overlay-white-70: rgba(255, 255, 255, 0.7);
+}

@@ -5,7 +5,7 @@
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 14px;
-  color: #333;
+  color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13,12 +13,12 @@
 }
 
 .calendar-item:hover {
-  background-color: #e8e8e8;
+  background-color: var(--color-bg-hover);
 }
 
 .calendar-item.active {
-  background-color: #007AFF;
-  color: white;
+  background-color: var(--color-primary-ios);
+  color: var(--color-text-white);
 }
 
 .calendar-name {
@@ -53,11 +53,11 @@
 }
 
 .calendar-menu-btn:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--overlay-black-10);
 }
 
 .calendar-item.active .calendar-menu-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--overlay-white-20);
 }
 
 

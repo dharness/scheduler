@@ -1,4 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  DEFAULT_EVENT_COLOR_INDEX,
+  getEventBorderColorVar,
+  getEventColorVar,
+  getEventDarkestColorVar,
+  getEventTextColorVar,
+  getEventTimeColorVar,
+  normalizeEventColor,
+} from "../constants/colors";
 import { useAppSelector } from "../store/hooks";
 import { RootState } from "../store/store";
 import { Event } from "../types/event";
@@ -58,7 +67,10 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
     x: number;
     y: number;
   } | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const eventRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const latestEventRef = useRef<Event>(event); // Track latest event during drag/resize
@@ -118,20 +130,11 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
     } else {
       // Track mouse down position to detect click vs drag
       setMouseDownPos({ x: e.clientX, y: e.clientY });
-      setIsDragging(true);
-      onDragStart?.(); // Notify parent that drag started
-      // Store original event state when drag starts
+      // Don't set isDragging immediately - wait for mouse movement to confirm it's a drag
+      // Store original event state when mouse down happens
       originalEventRef.current = { ...event };
 
-      // Store original states of all selected events for multi-select drag
-      if (selectedEventIds.size > 1 && selectedEventIds.has(event.id)) {
-        originalSelectedEventsRef.current.clear();
-        allEvents
-          .filter((e) => selectedEventIds.has(e.id))
-          .forEach((e) => {
-            originalSelectedEventsRef.current.set(e.id, { ...e });
-          });
-      }
+      // Set up initial drag start position (will be used when drag actually starts)
       const container = eventRef.current?.closest(".calendar-events-column");
       if (container && eventRef.current) {
         const containerRect = container.getBoundingClientRect();
@@ -141,11 +144,47 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
         const offsetY = e.clientY - eventRect.top;
         setDragStart({ x: e.clientX, y: initialY, offsetY });
       }
+
+      // Store original states of all selected events for multi-select drag
+      // (will be used when drag actually starts)
+      if (selectedEventIds.size > 1 && selectedEventIds.has(event.id)) {
+        originalSelectedEventsRef.current.clear();
+        allEvents
+          .filter((e) => selectedEventIds.has(e.id))
+          .forEach((e) => {
+            originalSelectedEventsRef.current.set(e.id, { ...e });
+          });
+      }
     }
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Check if we should start dragging (mouse moved more than threshold from mouse down)
+      if (!isDragging && mouseDownPos && eventRef.current) {
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - mouseDownPos.x, 2) +
+            Math.pow(e.clientY - mouseDownPos.y, 2)
+        );
+        // Start dragging if mouse moved more than 5px
+        if (distance > 5) {
+          // Set up drag start position
+          const container = eventRef.current.closest(
+            ".calendar-events-column"
+          ) as HTMLElement;
+          if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const eventRect = eventRef.current.getBoundingClientRect();
+            const initialY =
+              e.clientY - containerRect.top + container.scrollTop;
+            const offsetY = e.clientY - eventRect.top;
+            setDragStart({ x: e.clientX, y: initialY, offsetY });
+          }
+          setIsDragging(true);
+          onDragStart?.(); // Notify parent that drag started
+        }
+      }
+
       if (isDragging && eventRef.current) {
         const container = eventRef.current.closest(
           ".calendar-events-column"
@@ -287,24 +326,22 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      if (isDragging) {
-        // Check if this was a click (no movement) or a drag
-        if (mouseDownPos) {
-          const moveDistance = Math.sqrt(
-            Math.pow(e.clientX - mouseDownPos.x, 2) +
-              Math.pow(e.clientY - mouseDownPos.y, 2)
-          );
-          // If mouse moved less than 5px, consider it a click
-          if (moveDistance < 5) {
-            // This was a click, not a drag - select the event
-            onSelect?.();
-            setIsDragging(false);
-            setMouseDownPos(null);
-            onDragEnd?.();
-            return;
-          }
+      // If we have a mouse down position but never started dragging, it was a click
+      if (mouseDownPos && !isDragging) {
+        const moveDistance = Math.sqrt(
+          Math.pow(e.clientX - mouseDownPos.x, 2) +
+            Math.pow(e.clientY - mouseDownPos.y, 2)
+        );
+        // If mouse moved less than 5px, consider it a click
+        if (moveDistance < 5) {
+          // This was a click, not a drag - select the event
+          onSelect?.();
+          setMouseDownPos(null);
+          return;
         }
+      }
 
+      if (isDragging) {
         const originalEvent = originalEventRef.current;
         const currentEvent = latestEventRef.current;
 
@@ -405,7 +442,9 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
       setIsResizing(false);
     };
 
-    if (isDragging || isResizing) {
+    // Always listen for mouse events if we have a mouse down position (to detect drag start)
+    // or if we're already dragging/resizing
+    if (mouseDownPos || isDragging || isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       return () => {
@@ -538,7 +577,10 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
   // Individual event delete handlers are no longer needed here
 
   // Format time range for tooltip
-  const timeRangeTooltip = `${formatTime(event.startHour, event.startMinute)} - ${formatEndTime(event)}`;
+  const timeRangeTooltip = `${formatTime(
+    event.startHour,
+    event.startMinute
+  )} - ${formatEndTime(event)}`;
   const isShortEvent = event.duration <= 30;
 
   const handleMouseEnter = (e: React.MouseEvent) => {
@@ -563,16 +605,33 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
       className={`calendar-event ${isDragging ? "dragging" : ""} ${
         isResizing ? "resizing" : ""
       } ${width < 100 ? "overlapping" : ""} ${isSelected ? "selected" : ""} ${
-        isShiftPressed ? "multiselect-mode" : ""
-      } ${isShortEvent ? "short-event" : ""}`}
+        isEditing ? "editing" : ""
+      } ${isShiftPressed ? "multiselect-mode" : ""} ${
+        isShortEvent ? "short-event" : ""
+      }`}
       style={
         {
           top: `${top}px`,
           height: `${height}px`,
           left: `${left}%`,
           width: width < 100 ? `calc(${width}% - 2px)` : `${width}%`,
-          backgroundColor: event.color || "#4285f4",
-          "--event-color": event.color || "#4285f4",
+          backgroundColor:
+            isSelected || isDragging || isEditing
+              ? getEventDarkestColorVar(normalizeEventColor(event.color))
+              : getEventColorVar(normalizeEventColor(event.color)),
+          "--event-color": getEventColorVar(normalizeEventColor(event.color)),
+          "--event-text-color": getEventTextColorVar(
+            normalizeEventColor(event.color)
+          ),
+          "--event-border-color": getEventBorderColorVar(
+            normalizeEventColor(event.color)
+          ),
+          "--event-time-color": getEventTimeColorVar(
+            normalizeEventColor(event.color)
+          ),
+          "--event-darkest-color": getEventDarkestColorVar(
+            normalizeEventColor(event.color)
+          ),
         } as React.CSSProperties
       }
       onMouseEnter={handleMouseEnter}
@@ -624,10 +683,10 @@ export const CalendarEvent: React.FC<CalendarEventProps> = ({
         <div
           className="event-tooltip"
           style={{
-            position: 'fixed',
+            position: "fixed",
             left: `${tooltipPosition.x + 10}px`,
             top: `${tooltipPosition.y - 30}px`,
-            pointerEvents: 'none',
+            pointerEvents: "none",
           }}
         >
           {timeRangeTooltip}
